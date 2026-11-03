@@ -6,9 +6,11 @@
  * @category	snippet
  * @internal	@modx_category Navigation
  * @version     1.0.5
- * @author      PMS
+ * @author      Nicola Lambathakis http://www.tattoocms.it/ https://github.com/Nicola1971/ 
+ * @author      PMS 
  * @license 	http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal @installset base, sample
+* @lastupdate  03-11-2026
  */
 
 /**
@@ -17,7 +19,7 @@
  * ===================================================================
  * Snippet: Navigator
  * ===================================================================
- * Version: 1.0.4
+ * Version: 1.0.5
  * Date: 2015.08.17
  * Author: PMS
  * Licence: GPL v3
