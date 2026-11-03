@@ -3,11 +3,11 @@
  * Snippet: Navigator
  * ===================================================================
 *  Version History:
-*  0.1   - initial release
-*  0.1.1 - converted to be PHP 4 compatible
-*  0.1.2 - fixed a bug affecting skipping of unpublished documents
-*  0.1.3 - fixed bug affecting the use of templates stored in files and in chunks.
-*  1.0.3 - A magic jump in version number
+*  0.1   - initial release (by PMS)
+*  0.1.1 - converted to be PHP 4 compatible (by PMS)
+*  0.1.2 - fixed a bug affecting skipping of unpublished documents (by PMS)
+*  0.1.3 - fixed bug affecting the use of templates stored in files and in chunks. (by PMS)
+*  1.0.3 - A magic jump in version number (by PMS)
 *  1.0.4 - added isFolderAction (by Nicola1971)
 *  1.0.5 - PHP 8.x compatibility (by Nicola1971):
  * ===================================================================
