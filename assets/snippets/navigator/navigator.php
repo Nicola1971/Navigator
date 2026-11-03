@@ -3,8 +3,8 @@
 // ===================================================================
 // Snippet: Navigator
 // ===================================================================
-// Version: 1.0.4
-// Date: 2015.08.17
+// Version: 1.0.5
+// Date: 2026.11.03
 // Author: PMS
 // Licence: GPL GNU - Public
 // Credit: I used some code from the Wayfinder snippet when figuring out how to do templating.
@@ -16,6 +16,13 @@
 // 0.1.3 - fixed bug affecting the use of templates stored in files and in chunks.
 // 1.0.3 - A magic jump in version number
 // 1.0.4 - added isFolderAction (by Nicola1971)
+// 1.0.5 - PHP 8.x compatibility (by Nicola1971):
+//         - __construct() instead of PHP 4 style constructor (not called on PHP 8)
+//         - null-safe parameters, empty ids removed from stopIds/offIds
+//         - getPageInfo()/getTemplateVarOutput() returning false handled
+//         - TV and document values mapped by name instead of by position
+//         - @FILE: paths relative to MODX_BASE_PATH, missing file handled
+
 class Navigator
 {
 
@@ -45,10 +52,15 @@ class Navigator
   var $template;
 
 
-  function Navigator( $params )
+  function __construct( $params = array() )
   {
     global $modx;
-    $this->modx = &$modx;
+    $this->modx = $modx;
+
+    if ( ! is_array( $params ) )
+    {
+      $params = array();
+    }
 
     // Set allowed values
     $this->relVals = array('up', 'prev', 'next');
@@ -57,9 +69,9 @@ class Navigator
     $this->notInMenuActionVals = array('skip', 'stop', 'link');
     $this->isFolderActionVals = array('skip', 'stop', 'link');
     $this->placeHolderFieldVals = array('nav.rel');
-    $this->rel = 'up';
 
     // Set default values
+    $this->rel = 'up';
     $this->stopIds = '';
     $this->offIds = '';
     $this->transcend = 1;
@@ -68,77 +80,72 @@ class Navigator
     $this->notInMenuAction = 'skip';
     $this->isFolderAction = 'skip';
     $this->templateSource = '';
+    $this->template = '';
 
     $this->stopIdArray = array();
     $this->offIdArray = array();
 
-    if ( array_key_exists( 'rel', $params ) )
+    if ( isset( $params['rel'] ) && in_array( $params['rel'], $this->relVals, true ) )
     {
-      if ( in_array( $params['rel'], $this->relVals ) )
+      $this->rel = $params['rel'];
+    }
+
+    if ( isset( $params['stopIds'] ) )
+    {
+      $this->stopIds = (string)$params['stopIds'];
+      $this->stopIdArray = $this->IdList( $this->stopIds );
+    }
+
+    if ( isset( $params['offIds'] ) )
+    {
+      $this->offIds = (string)$params['offIds'];
+      $this->offIdArray = $this->IdList( $this->offIds );
+    }
+
+    if ( isset( $params['transcend'] ) )
+    {
+      $this->transcend = $params['transcend'] ? 1 : 0;
+    }
+
+    if ( isset( $params['weblinkAction'] ) && in_array( $params['weblinkAction'], $this->weblinkActionVals, true ) )
+    {
+      $this->weblinkAction = $params['weblinkAction'];
+    }
+
+    if ( isset( $params['unpublishedAction'] ) && in_array( $params['unpublishedAction'], $this->unpublishedActionVals, true ) )
+    {
+      $this->unpublishedAction = $params['unpublishedAction'];
+    }
+
+    if ( isset( $params['notInMenuAction'] ) && in_array( $params['notInMenuAction'], $this->notInMenuActionVals, true ) )
+    {
+      $this->notInMenuAction = $params['notInMenuAction'];
+    }
+
+    if ( isset( $params['isFolderAction'] ) && in_array( $params['isFolderAction'], $this->isFolderActionVals, true ) )
+    {
+      $this->isFolderAction = $params['isFolderAction'];
+    }
+
+    if ( isset( $params['template'] ) )
+    {
+      $this->templateSource = (string)$params['template'];
+    }
+
+  }
+
+  // Converts a comma separated list of ids into an array of integers (empty values removed)
+  function IdList( $value )
+  {
+    $ids = array();
+    foreach ( explode( ',', str_replace( ' ', '', (string)$value ) ) as $item )
+    {
+      if ( $item !== '' && is_numeric( $item ) )
       {
-        $this->rel = $params['rel'];
+        $ids[] = (int)$item;
       }
     }
-
-    if ( array_key_exists( 'stopIds', $params ) )
-    {
-      $this->stopIdArray = explode( ',', str_replace(' ','', $params['stopIds'] ) );
-    }
-
-    if ( array_key_exists( 'offIds', $params ) )
-    {
-      $this->offIdArray = explode( ',', str_replace(' ','', $params['offIds'] ) );
-    }
-
-    if ( array_key_exists( 'transcend', $params ) )
-    {
-      if ( $params['transcend'] )
-      {
-        $this->transcend = 1;
-      }
-      else
-      {
-        $this->transcend = 0;
-      }
-    }
-
-    if ( array_key_exists( 'weblinkAction', $params ) )
-    {
-      if ( in_array( $params['weblinkAction'], $this->weblinkActionVals ) )
-      {
-        $this->weblinkAction = $params['weblinkAction'];
-      }
-    }
-
-    if ( array_key_exists( 'unpublishedAction', $params ) )
-    {
-      if ( in_array( $params['unpublishedAction'], $this->unpublishedActionVals ) )
-      {
-        $this->unpublishedAction = $params['unpublishedAction'];
-      }
-    }
-
-    if ( array_key_exists( 'notInMenuAction', $params ) )
-    {
-      if ( in_array( $params['notInMenuAction'], $this->notInMenuActionVals ) )
-      {
-        $this->notInMenuAction = $params['notInMenuAction'];
-      }
-    }
-    
-    if ( array_key_exists( 'isFolderAction', $params ) )
-    {
-      if ( in_array( $params['isFolderAction'], $this->isFolderActionVals ) )
-      {
-        $this->isFolderAction = $params['isFolderAction'];
-      }
-    }
-
-    if ( array_key_exists( 'template', $params ) )
-    {
-      $this->templateSource = $params['template'];
-    }
-
+    return $ids;
   }
 
   function Calculate( )
@@ -148,8 +155,13 @@ class Navigator
     // Calculation
     // ======================================================
 
+    if ( ! is_object( $this->modx ) || empty( $this->modx->documentIdentifier ) )
+    {
+      return '';
+    }
+
     // Get the current document id
-    $currentId = $this->modx->documentIdentifier;
+    $currentId = (int)$this->modx->documentIdentifier;
 
     // If the snippet has been switched off for this document, don't display it
     if ( in_array( $currentId, $this->offIdArray ) )
@@ -159,7 +171,7 @@ class Navigator
 
     // Get the content
     $this->template = $this->GetTemplate( $this->templateSource );
-    if ( $this->template === FALSE )
+    if ( $this->template === FALSE || $this->template === '' )
     {
       // Could create a template based on type here...
       return '';
@@ -168,13 +180,10 @@ class Navigator
     while ( true )
     {
 
-      // Get the parent document id
-      $parentId = $this->GetParentId( $currentId );
-
       switch ( $this->rel )
       {
         case 'up':
-          $id = $parentId;
+          $id = $this->GetParentId( $currentId );
           break;
         case 'prev':
           $id = $this->GetPreviousDocId( $currentId );
@@ -185,6 +194,8 @@ class Navigator
         default:
           return '';
       }
+
+      $id = (int)$id;
 
       if ( $id <= 0 )
       {
@@ -206,8 +217,6 @@ class Navigator
       }
     }
 
-
-    // Return the parent's sibling's id
     return $this->GetOutput( $id );
   }
 
@@ -215,53 +224,60 @@ class Navigator
   {
     // based on a version in Wayfinder 2.0... which was...
     // based on version by Doze at http://modxcms.com/forums/index.php/topic,5344.msg41096.html#msg41096
-    $template = $this->modx->getChunk( $source );
-    if ( $template != '')
+    $source = (string)$source;
+    if ( $source === '' )
     {
-      return $template;
+      return FALSE;
     }
-    $mode = substr( $source, 0, 6);
+
+    $mode = substr( $source, 0, 6 );
     $content = substr( $source, 6 );
+
     if ( $mode == '@FILE:' )
     {
-      return $this->GetFileContents( $content );
+      return $this->GetFileContents( trim( $content ) );
     }
     if ( $mode == '@CODE:' )
     {
       return $content;
     }
+
+    $template = (string)$this->modx->getChunk( $source );
+    if ( $template !== '' )
+    {
+      return $template;
+    }
+
     return FALSE;
   }
 
   function GetFileContents( $filename )
   {
-    // Function written at http://www.nutt.net/2006/07/08/file_get_contents-function-for-php-4/#more-210
-    // Returns the contents of file name passed
-    if ( ! function_exists( 'file_get_contents' ) )
+    // Relative paths are resolved from the site root
+    if ( ! is_file( $filename ) && defined( 'MODX_BASE_PATH' ) )
     {
-      $fhandle = fopen( $filename, 'r' );
-      $fcontents = fread( $fhandle, filesize( $filename ) );
-      fclose( $fhandle );
+      $filename = MODX_BASE_PATH . ltrim( $filename, '/' );
     }
-    else
+    if ( ! is_file( $filename ) || ! is_readable( $filename ) )
     {
-      $fcontents = file_get_contents( $filename );
+      return FALSE;
     }
-    return $fcontents;
+    $fcontents = file_get_contents( $filename );
+    return ( $fcontents === FALSE ) ? FALSE : $fcontents;
   }
 
   function GetPlaceHolderFieldsArray( $tpl )
   {
     // Extract the place holders from the document...
-    preg_match_all('~\[\+(.*?)\+\]~', $tpl, $matches);
+    preg_match_all( '~\[\+(.*?)\+\]~', (string)$tpl, $matches );
     return array_unique( $matches[1] );
   }
 
   function GetTVArray()
   {
-  // Gets an array of all template variables
-    $table = $this->modx->getFullTableName('site_tmplvars');
-    $tvs = $this->modx->db->select('name', $table);
+    // Gets an array of all template variables
+    $table = $this->modx->getFullTableName( 'site_tmplvars' );
+    $tvs = $this->modx->db->select( 'name', $table );
     // TODO: make it so that it only pulls those that apply to the current template
     $dbfields = array();
     while ( $dbfield = $this->modx->db->getRow( $tvs ) )
@@ -276,6 +292,7 @@ class Navigator
     // Creates the output in the given format.
 
     // Check that the id is valid
+    $id = (int)$id;
     if ( $id <= 0 )
     {
       return '';
@@ -283,96 +300,92 @@ class Navigator
 
     $placeHolderFieldsArray = $this->GetPlaceHolderFieldsArray( $this->template );
 
-    // Handle any navigator placeholders
+    // Navigator placeholders
     $nlPlaceHoldersArray = array();
     $nlPlaceHolderValuesArray = array();
     foreach ( $placeHolderFieldsArray as $item => $field )
     {
-      if ( in_array( $field, $this->placeHolderFieldVals ) )
+      if ( in_array( $field, $this->placeHolderFieldVals, true ) )
       {
         $nlPlaceHoldersArray[] = '[+' . $field . '+]';
-        // Get the values...
         switch ( $field )
         {
           case 'nav.rel':
             $nlPlaceHolderValuesArray[] = $this->rel;
             break;
           default:
-            return '';
+            $nlPlaceHolderValuesArray[] = '';
         }
-        // Remove this field from the placeHolderFieldsArray
         unset( $placeHolderFieldsArray[$item] );
       }
     }
 
-    $tvArray = $this->GetTVArray();
-
+    // Template variable placeholders
     $tvPlaceHoldersArray = array();
     $tvPlaceHolderFieldsArray = array();
-    foreach ( $placeHolderFieldsArray as $item => $field )
+    if ( count( $placeHolderFieldsArray ) > 0 )
     {
-      if ( in_array( $field, $tvArray ) )
+      $tvArray = $this->GetTVArray();
+      foreach ( $placeHolderFieldsArray as $item => $field )
       {
-        $tvPlaceHoldersArray[] = '[+' . $field . '+]';
-        $tvPlaceHolderFieldsArray[] = $field;
-        // Remove this field from the placeHolderFieldsArray
-        unset( $placeHolderFieldsArray[$item] );
+        if ( in_array( $field, $tvArray, true ) )
+        {
+          $tvPlaceHoldersArray[] = '[+' . $field . '+]';
+          $tvPlaceHolderFieldsArray[] = $field;
+          unset( $placeHolderFieldsArray[$item] );
+        }
       }
     }
 
-    // Template variables
     $tvPlaceHolderValuesArray = array();
-    if ( count( $tvPlaceHoldersArray ) > 0 )
+    if ( count( $tvPlaceHolderFieldsArray ) > 0 )
     {
-      $tvPlaceHolderValuesArray = array_values(
-          $this->modx->getTemplateVarOutput(
-            $tvPlaceHolderFieldsArray
-            , $id
-          )
-      );
+      $tvOutput = $this->modx->getTemplateVarOutput( $tvPlaceHolderFieldsArray, $id );
+      foreach ( $tvPlaceHolderFieldsArray as $field )
+      {
+        $tvPlaceHolderValuesArray[] = ( is_array( $tvOutput ) && isset( $tvOutput[$field] ) )
+          ? (string)$tvOutput[$field]
+          : '';
+      }
     }
 
+    // Document field placeholders
     $docPlaceHoldersArray = array();
     $docPlaceHolderFieldsArray = array();
-    foreach ( $placeHolderFieldsArray as $item => $field )
+    foreach ( $placeHolderFieldsArray as $field )
     {
-    // if ( in_array( $field, $tvArray ) )
-    // {
-      $docPlaceHoldersArray[] = '[+' . $field . '+]';
-      $docPlaceHolderFieldsArray[] = $field;
-    // Remove this field from the placeHolderFieldsArray
-    // unset( $placeHolderFieldsArray[$item] );
-    // }
+      // only plain field names can be passed to the query
+      if ( preg_match( '~^[a-zA-Z_][a-zA-Z0-9_]*$~', $field ) )
+      {
+        $docPlaceHoldersArray[] = '[+' . $field . '+]';
+        $docPlaceHolderFieldsArray[] = $field;
+      }
     }
 
-    // Get the data....
-    // Template variables
     $docPlaceHolderValuesArray = array();
     if ( count( $docPlaceHolderFieldsArray ) > 0 )
     {
-      $docPlaceHolderValuesArray = array_values(
-          $this->modx->getPageInfo(
-          $id
-          , 0
-          , implode(',',$docPlaceHolderFieldsArray)
-          )
-      );
+      $doc = $this->modx->getPageInfo( $id, 0, implode( ',', $docPlaceHolderFieldsArray ) );
+      foreach ( $docPlaceHolderFieldsArray as $field )
+      {
+        $docPlaceHolderValuesArray[] = ( is_array( $doc ) && isset( $doc[$field] ) )
+          ? (string)$doc[$field]
+          : '';
+      }
     }
 
     return str_replace(
-      array_merge(
-        $nlPlaceHoldersArray
-        , $tvPlaceHoldersArray
-        , $docPlaceHoldersArray
-        )
-      , array_merge(
-        $nlPlaceHolderValuesArray
-        , $tvPlaceHolderValuesArray
-        , $docPlaceHolderValuesArray
-        )
-      , $this->template
+      array_merge( $nlPlaceHoldersArray, $tvPlaceHoldersArray, $docPlaceHoldersArray ),
+      array_merge( $nlPlaceHolderValuesArray, $tvPlaceHolderValuesArray, $docPlaceHolderValuesArray ),
+      $this->template
     );
 
+  }
+
+  function GetDocFlags( $id )
+  {
+    $doc = $this->modx->getPageInfo( (int)$id, 0, 'type,published,hidemenu,isfolder,deleted' );
+    return is_array( $doc ) ? $doc : FALSE;
   }
 
   function IsSkipId( $id )
@@ -385,31 +398,28 @@ class Navigator
     {
       return FALSE;
     }
-    $doc = $this->modx->getPageInfo(
-        $id
-        , 0
-        , 'type,published,hidemenu,isfolder,deleted' );
-    if ( !is_array( $doc ) )
+    $doc = $this->GetDocFlags( $id );
+    if ( $doc === FALSE )
     {
       return TRUE;
     }
-    if ( $doc['deleted'] )
+    if ( ! empty( $doc['deleted'] ) )
     {
       return TRUE;
     }
-    if ( $this->weblinkAction == 'skip' && $doc['type'] == 'reference')
+    if ( $this->weblinkAction == 'skip' && $doc['type'] == 'reference' )
     {
       return TRUE;
     }
-    if ( $this->unpublishedAction == 'skip' && ! $doc['published'])
+    if ( $this->unpublishedAction == 'skip' && empty( $doc['published'] ) )
     {
       return TRUE;
     }
-    if ( $this->notInMenuAction == 'skip' && $doc['hidemenu'] )
+    if ( $this->notInMenuAction == 'skip' && ! empty( $doc['hidemenu'] ) )
     {
       return TRUE;
     }
-    if ( $this->isFolderAction == 'skip' && $doc['isfolder'] )
+    if ( $this->isFolderAction == 'skip' && ! empty( $doc['isfolder'] ) )
     {
       return TRUE;
     }
@@ -423,36 +433,33 @@ class Navigator
     {
       return TRUE;
     }
-    if ( in_array( $id, $this->stopIdArray ) )
+    if ( in_array( (int)$id, $this->stopIdArray ) )
     {
       return TRUE;
     }
-    $doc = $this->modx->getPageInfo(
-        $id
-        , 0
-        , 'type,published,hidemenu,isfolder,deleted'
-    );
-    if ( !is_array( $doc ) )
+    $doc = $this->GetDocFlags( $id );
+    if ( $doc === FALSE )
     {
       return TRUE;
     }
-    if ( $doc['deleted'] )
+    if ( ! empty( $doc['deleted'] ) )
     {
+      // deleted documents are skipped, not treated as a stop
       return FALSE;
     }
-    if ( $this->weblinkAction == 'stop' && $doc['type'] == 'reference')
+    if ( $this->weblinkAction == 'stop' && $doc['type'] == 'reference' )
     {
       return TRUE;
     }
-    if ( $this->unpublishedAction == 'stop' && ! $doc['published'])
+    if ( $this->unpublishedAction == 'stop' && empty( $doc['published'] ) )
     {
       return TRUE;
     }
-    if ( $this->notInMenuAction == 'stop' && $doc['hidemenu'] )
+    if ( $this->notInMenuAction == 'stop' && ! empty( $doc['hidemenu'] ) )
     {
       return TRUE;
     }
-    if ( $this->isFolderAction == 'stop' && $doc['isfolder'] )
+    if ( $this->isFolderAction == 'stop' && ! empty( $doc['isfolder'] ) )
     {
       return TRUE;
     }
@@ -463,117 +470,87 @@ class Navigator
   function GetParentId( $id )
   {
     // Gets the id of the parent.
-    // If the document is the root, and so has no parent, -1 is returned
-    if ( $id <= 0 ) {
+    // If the document is the root, or can't be found, -1 is returned
+    if ( $id <= 0 )
+    {
       return -1;
     }
-    $currentDoc = $this->modx->getPageInfo(
-        $id
-        , 0
-        , 'parent'
-    );
-    return $currentDoc['parent'];
+    $currentDoc = $this->modx->getPageInfo( (int)$id, 0, 'parent' );
+    if ( ! is_array( $currentDoc ) || ! isset( $currentDoc['parent'] ) )
+    {
+      return -1;
+    }
+    return (int)$currentDoc['parent'];
+  }
+
+  function GetChildren( $id )
+  {
+    if ( $id < 0 )
+    {
+      return array();
+    }
+    $children = $this->modx->getAllChildren( (int)$id, 'menuindex', 'ASC', 'id' );
+    return is_array( $children ) ? array_values( $children ) : array();
   }
 
   function GetFirstChildId( $id )
   {
     // Gets the id of the first child of the document
     // Returns -1 if it can't find one
-
-    $firstChildId = -1;
-
-    // Get the children
-    $children = $this->modx->getAllChildren(
-        $id
-        , 'menuindex'
-        , 'ASC'
-        , 'id'
-    );
-
-    // Calculate the number of children
-    $nChildren = count( $children );
-
-    if ( $nChildren > 0 )
+    $children = $this->GetChildren( $id );
+    if ( count( $children ) > 0 && isset( $children[0]['id'] ) )
     {
-      // Get the id of the first child
-      $firstChildId = $children[0]['id'];
-      return $firstChildId;
+      return (int)$children[0]['id'];
     }
-
-    return $firstChildId;
-
+    return -1;
   }
 
   function GetLastChildId( $id )
   {
     // Gets the id of the last child of the document
     // Returns -1 if it can't find one
-
-    $lastChildId = -1;
-
-    // Get the children
-    $children = $this->modx->getAllChildren(
-        $id
-        , 'menuindex'
-        , 'ASC'
-        , 'id'
-    );
-
-    // Calculate the number of children
+    $children = $this->GetChildren( $id );
     $nChildren = count( $children );
-
-    if ( $nChildren > 0 )
+    if ( $nChildren > 0 && isset( $children[$nChildren - 1]['id'] ) )
     {
-      // Get the id of the last child
-      $lastChildId = $children[$nChildren-1]['id'];
-
-      return $lastChildId;
+      return (int)$children[$nChildren - 1]['id'];
     }
-
-    return $lastChildId;
-
+    return -1;
   }
 
   function GetSiblingId( $id )
   {
-    // Gets the next sibling.
+    // Gets the previous/next sibling (depending on rel).
     // Returns -1 if one doesn't exist
 
-    $siblingId = -1;
-
     // If the document is the document root, then it has no siblings
-    if ( $id == 0 )
+    if ( $id <= 0 )
     {
       return -1;
     }
 
-    // Get the parent document id
     $parentId = $this->GetParentId( $id );
+    if ( $parentId < 0 )
+    {
+      return -1;
+    }
 
     // Get the immediate siblings (and the current document)
-    $siblings = $this->modx->getAllChildren(
-        $parentId
-        , 'menuindex'
-        , 'ASC'
-        , 'id'
-    );
-
-    // Calculate the number of siblings
-    $nSiblings = count( $siblings ) - 1;
+    $siblings = $this->GetChildren( $parentId );
+    $lastIndex = count( $siblings ) - 1;
 
     $currentIndex = -1;
-    // Find the current document in the list of siblings
-    foreach ( $siblings as  $index => $sibling )
+    foreach ( $siblings as $index => $sibling )
     {
-      if ( $sibling['id'] == $id )
+      if ( isset( $sibling['id'] ) && (int)$sibling['id'] == (int)$id )
       {
         $currentIndex = $index;
         break;
       }
     }
-    if ($currentIndex == -1)
+    if ( $currentIndex == -1 )
     {
-      return $siblingId;
+      return -1;
     }
 
     switch ( $this->rel )
@@ -581,136 +558,80 @@ class Navigator
       case 'prev':
         if ( $currentIndex > 0 )
         {
-          $siblingId = $siblings[$currentIndex-1]['id'];
-          return $siblingId;
+          return (int)$siblings[$currentIndex - 1]['id'];
         }
         break;
       case 'next':
-        if ( $currentIndex < $nSiblings )
+        if ( $currentIndex < $lastIndex )
         {
-          $siblingId = $siblings[$currentIndex+1]['id'];
-          return $siblingId;
+          return (int)$siblings[$currentIndex + 1]['id'];
         }
         break;
-      default:
-        return $siblingId;
     }
 
-    return $siblingId;
+    return -1;
   }
 
   function GetPreviousDocId( $id )
   {
-    if ( $this->transcend )
+    $siblingId = $this->GetSiblingId( $id );
+
+    if ( ! $this->transcend )
     {
-      // If the current document has a previous sibling, then get its last child
-
-      // Check if the current document has a previous sibling
-      $siblingId = $this->GetSiblingId( $id );
-
-      // If it has a sibling...
-      while ( $siblingId >= 0 )
-      {
-        // Get the last child of the document
-        $lastChildId = $this->GetLastChildId( $siblingId );
-
-        // If it doesn't have a child, then stop here
-        if ( $lastChildId < 0 )
-        {
-          return $siblingId;
-        }
-
-        // Go down the tree
-        $siblingId = $lastChildId;
-
-      }
-
-      // The current document doesn't have a previous sibling, so get its parent.
-      $parentId = $this->GetParentId( $id );
-
-      if ( $parentId >= 0 )
-      {
-        return $parentId;
-      }
-
-      return -1;
+      return ( $siblingId >= 0 ) ? $siblingId : -1;
     }
-    else
+
+    // If the current document has a previous sibling, go down to its last descendant
+    while ( $siblingId >= 0 )
     {
-
-      // A sibling was required. Get the sibling
-      $siblingId = $this->GetSiblingId( $id );
-
-      // If the sibling has been found, then create the link
-      if ( $siblingId >= 0 )
+      $lastChildId = $this->GetLastChildId( $siblingId );
+      if ( $lastChildId < 0 )
       {
         return $siblingId;
       }
-
-      return -1;
+      $siblingId = $lastChildId;
     }
 
-    return -1;
+    // No previous sibling: the previous document is the parent
+    $parentId = $this->GetParentId( $id );
+    return ( $parentId >= 0 ) ? $parentId : -1;
   }
 
   function GetNextDocId( $id )
   {
-    if ( $this->transcend )
+    if ( ! $this->transcend )
     {
-    // If the current document has children, then get the first child.
-      $firstChildId = $this->GetFirstChildId( $id );
-
-      if ( $firstChildId >= 0 )
-      {
-      // Return the first page
-        return $firstChildId;
-      }
-
-      // otherwise, try to get the next sibling.
       $siblingId = $this->GetSiblingId( $id );
-
-      if ( $siblingId >= 0)
-      {
-      // Return the first page
-        return $siblingId;
-      }
-
-      // If there is no next sibling, get the parent's sibling.
-      $parentId = $this->GetParentId( $id );
-
-      // Check if the parent is valid
-      while ( $parentId >= 0 )
-      {
-        $parentsSiblingId = $this->GetSiblingId( $parentId );
-
-        if ( $parentsSiblingId >= 0 ) {
-        // Return the parent's sibling's id
-          return $parentsSiblingId;
-        }
-
-        // Repeat the last step until completion
-        $parentId = $this->GetParentId( $parentId );
-      }
-
-      return -1;
-
+      return ( $siblingId >= 0 ) ? $siblingId : -1;
     }
-    else {
 
-    // A sibling was required. Get the sibling
-      $siblingId = $this->GetSiblingId( $id );
+    // If the current document has children, the next document is the first child
+    $firstChildId = $this->GetFirstChildId( $id );
+    if ( $firstChildId >= 0 )
+    {
+      return $firstChildId;
+    }
 
-      // If the sibling has been found, then create the link
-      if ( $siblingId >= 0 ) {
-        return $siblingId;
+    // Otherwise the next sibling
+    $siblingId = $this->GetSiblingId( $id );
+    if ( $siblingId >= 0 )
+    {
+      return $siblingId;
+    }
+
+    // Otherwise the next sibling of the nearest ancestor that has one
+    $parentId = $this->GetParentId( $id );
+    while ( $parentId > 0 )
+    {
+      $parentsSiblingId = $this->GetSiblingId( $parentId );
+      if ( $parentsSiblingId >= 0 )
+      {
+        return $parentsSiblingId;
       }
-
-      return -1;
+      $parentId = $this->GetParentId( $parentId );
     }
 
     return -1;
   }
 
-
 }
-?>

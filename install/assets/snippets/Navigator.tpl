@@ -1,11 +1,11 @@
 /**
  * Navigator
  *
- * Navigator 1.0.4 - Prev Next Navigation snippet
+ * Navigator 1.0.5 - Prev Next Navigation snippet
  *
  * @category	snippet
  * @internal	@modx_category Navigation
- * @version     1.0.4
+ * @version     1.0.5
  * @author      PMS
  * @license 	http://www.gnu.org/copyleft/gpl.html GNU Public License (GPL)
  * @internal @installset base, sample
@@ -150,19 +150,19 @@
  * The snippet...
  * ===================================================================
 */
-  require_once($modx->config['base_path'] . 'assets/snippets/navigator/navigator.php');
+require_once MODX_BASE_PATH . 'assets/snippets/navigator/navigator.php';
 
-  $navigator = new Navigator( array(
-      'rel' => $rel
-      , 'stopIds' => $stopIds
-      , 'offIds' => $offIds
-      , 'transcend' => $transcend
-      , 'weblinkAction' => $weblinkAction
-      , 'unpublishedAction' => $unpublishedAction
-      , 'notInMenuAction' => $notInMenuAction
-	  , 'isFolderAction' => $isFolderAction
-      , 'template' => $template
-      ) );
+$navigator = new Navigator(array(
+    'rel'               => (string)($rel ?? 'up'),
+    'stopIds'           => (string)($stopIds ?? ''),
+    'offIds'            => (string)($offIds ?? ''),
+    'transcend'         => (int)($transcend ?? 1),
+    'weblinkAction'     => (string)($weblinkAction ?? 'skip'),
+    'unpublishedAction' => (string)($unpublishedAction ?? 'skip'),
+    'notInMenuAction'   => (string)($notInMenuAction ?? 'skip'),
+    'isFolderAction'    => (string)($isFolderAction ?? 'skip'),
+    'template'          => (string)($template ?? ''),
+));
 
-  return $navigator->Calculate( );
+return $navigator->Calculate();
 ?>
